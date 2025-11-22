@@ -10,6 +10,11 @@ stems
 models/*.onnx
 models/*.pt
 
+# Audio files (test files only, except specific examples)
+*.wav
+*.flac
+*.aiff
+
 # IDE
 .vscode/
 .idea/
