@@ -15,12 +15,28 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SNDFILE REQUIRED sndfile)
 
-# ONNX Runtime - will be needed soon
-# find_package(onnxruntime REQUIRED)
+# ONNX Runtime
+find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
+    PATHS /opt/homebrew/include /usr/local/include /usr/include
+    PATH_SUFFIXES onnxruntime onnxruntime/core/session
+)
+
+find_library(ONNXRUNTIME_LIBRARY
+    NAMES onnxruntime
+    PATHS /opt/homebrew/lib /usr/local/lib /usr/lib
+)
+
+if(NOT ONNXRUNTIME_INCLUDE_DIR OR NOT ONNXRUNTIME_LIBRARY)
+    message(FATAL_ERROR "ONNX Runtime not found")
+endif()
+
+message(STATUS "ONNX Runtime found: ${ONNXRUNTIME_LIBRARY}")
+message(STATUS "ONNX Runtime include: ${ONNXRUNTIME_INCLUDE_DIR}")
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${SNDFILE_INCLUDE_DIRS}
+    ${ONNXRUNTIME_INCLUDE_DIR}
 )
 
 # Main executable
@@ -31,6 +47,7 @@ add_executable(stems
 
 target_link_libraries(stems
     ${SNDFILE_LDFLAGS}
+    ${ONNXRUNTIME_LIBRARY}
 )
 
 # Installation
