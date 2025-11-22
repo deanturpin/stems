@@ -14,6 +14,7 @@ endif()
 # Find dependencies
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SNDFILE REQUIRED sndfile)
+pkg_check_modules(FFTW3 REQUIRED fftw3)
 
 # ONNX Runtime
 find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
@@ -37,6 +38,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${SNDFILE_INCLUDE_DIRS}
     ${ONNXRUNTIME_INCLUDE_DIR}
+    ${FFTW3_INCLUDE_DIRS}
 )
 
 # Main executable
@@ -49,6 +51,7 @@ add_executable(stems
 target_link_libraries(stems
     ${SNDFILE_LDFLAGS}
     ${ONNXRUNTIME_LIBRARY}
+    ${FFTW3_LDFLAGS}
 )
 
 # Installation

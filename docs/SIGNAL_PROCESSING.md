@@ -58,9 +58,18 @@ Based on [Demucs ONNX documentation](https://github.com/sevagh/demucs.onnx):
 4. **Output**: 4 spectrograms (one per stem)
 5. **Post-processing**: Apply iSTFT to each stem
 
-## Recommendation
+## Decision: FFTW3
 
-**Start with Option 1: Vendor demucs.cpp STFT**
+**Selected: FFTW3** - Industry standard, fastest performance
+
+Integrated as of 2024-11-22:
+- Version: 3.3.10
+- Installed via Homebrew
+- Linked through pkg-config
+
+## Previous Recommendation
+
+**Alternative: Vendor demucs.cpp STFT**
 
 Rationale:
 - Proven to work with Demucs ONNX models
