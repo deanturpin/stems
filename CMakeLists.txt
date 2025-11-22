@@ -43,6 +43,7 @@ include_directories(
 add_executable(stems
     src/main.cxx
     src/audio_validator.cxx
+    src/onnx_model.cxx
 )
 
 target_link_libraries(stems
