@@ -78,18 +78,4 @@ std::expected<std::vector<std::vector<float>>, ModelError> OnnxModel::infer(
     return std::unexpected(ModelError::InferenceFailed);
 }
 
-std::string_view error_message(ModelError error) {
-    switch (error) {
-        case ModelError::FileNotFound:
-            return "Model file not found";
-        case ModelError::LoadFailed:
-            return "Failed to load model";
-        case ModelError::InvalidModel:
-            return "Invalid model format";
-        case ModelError::InferenceFailed:
-            return "Inference failed";
-    }
-    return "Unknown error";
-}
-
 } // namespace stems

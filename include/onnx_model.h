@@ -48,6 +48,23 @@ private:
 };
 
 // Convert ModelError to human-readable string
-std::string_view error_message(ModelError);
+constexpr std::string_view error_message(ModelError error) {
+    switch (error) {
+        case ModelError::FileNotFound:
+            return "Model file not found";
+        case ModelError::LoadFailed:
+            return "Failed to load model";
+        case ModelError::InvalidModel:
+            return "Invalid model format";
+        case ModelError::InferenceFailed:
+            return "Inference failed";
+    }
+    return "Unknown error";
+}
+
+// Compile-time tests
+static_assert(error_message(ModelError::FileNotFound) == "Model file not found");
+static_assert(error_message(ModelError::LoadFailed) == "Failed to load model");
+static_assert(!error_message(ModelError::InferenceFailed).empty());
 
 } // namespace stems

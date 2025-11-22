@@ -43,20 +43,4 @@ validate_audio_file(std::string_view path) {
                    .format_name = "WAV"};
 }
 
-std::string_view error_message(ValidationError error) {
-  switch (error) {
-  case ValidationError::FileNotFound:
-    return "File not found or cannot be opened";
-  case ValidationError::UnsupportedFormat:
-    return "Unsupported audio format (only WAV supported currently)";
-  case ValidationError::LossyFormat:
-    return "Lossy format not supported";
-  case ValidationError::CorruptedFile:
-    return "File appears to be corrupted";
-  case ValidationError::UnknownError:
-    return "Unknown error occurred";
-  }
-  return "Unknown error";
-}
-
 } // namespace stems
