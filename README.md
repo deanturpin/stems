@@ -172,11 +172,17 @@ Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 MIT Licence - see [LICENCE](LICENCE) for details.
 
+## Documentation
+
+- [Signal Processing Options](docs/SIGNAL_PROCESSING.md) - FFT library comparison and STFT implementation strategies
+- [Model Setup](models/README.md) - How to obtain and convert ONNX models
+
 ## Acknowledgements
 
 - [Demucs](https://github.com/facebookresearch/demucs) by Meta Research for the outstanding separation model
 - [ONNX Runtime](https://onnxruntime.ai/) for cross-platform ML inference
 - [Mixxx GSoC 2025](https://mixxx.org/news/2025-10-27-gsoc2025-demucs-to-onnx-dhunstack/) for Demucs ONNX conversion work
+- [sevagh/demucs.onnx](https://github.com/sevagh/demucs.onnx) and [sevagh/demucs.cpp](https://github.com/sevagh/demucs.cpp) for ONNX and C++ reference implementations
 - [Ultimate Vocal Remover](https://github.com/Anjok07/ultimatevocalremovergui) community for model research
 
 ## References
