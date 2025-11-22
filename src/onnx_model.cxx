@@ -1,4 +1,5 @@
 #include "onnx_model.h"
+#include <algorithm>
 #include <filesystem>
 #include <print>
 
@@ -63,19 +64,146 @@ std::expected<OnnxModel, ModelError> OnnxModel::load(std::string_view model_path
     }
 }
 
-std::expected<std::vector<std::vector<float>>, ModelError> OnnxModel::infer(
-    std::vector<float> const& audio_data,
-    int sample_rate,
-    int channels
+std::expected<std::vector<Spectrogram>, ModelError> OnnxModel::infer(
+    std::vector<float> const& audio_left,
+    std::vector<float> const& audio_right,
+    Spectrogram const& spec_left,
+    Spectrogram const& spec_right
 ) {
-    // Placeholder implementation - will be completed in next step
-    // This requires STFT preprocessing and proper tensor preparation
-    std::println("Inference not yet implemented");
-    std::println("  Audio samples: {}", audio_data.size());
-    std::println("  Sample rate: {}", sample_rate);
-    std::println("  Channels: {}", channels);
+    try {
+        // Demucs htdemucs model expects dual inputs:
+        // 1. Time-domain waveform: [batch, channels, time]
+        // 2. Spectrogram: [batch, channels, freq, time] with complex-as-channels
 
-    return std::unexpected(ModelError::InferenceFailed);
+        auto const num_samples = audio_left.size();
+        auto const num_frames = spec_left.num_frames;
+        auto const num_bins = spec_left.num_bins;
+
+        std::println("Preparing ONNX tensors:");
+        std::println("  Time-domain: [1, 2, {}]", num_samples);
+        std::println("  Spectrogram: [1, 2, {}, {}]", num_bins, num_frames);
+
+        // Prepare time-domain input tensor [1, 2, time]
+        // Interleave left and right channels
+        auto waveform_data = std::vector<float>(2 * num_samples);
+        for (auto i = 0uz; i < num_samples; ++i) {
+            waveform_data[i] = audio_left[i];                    // Channel 0 (left)
+            waveform_data[num_samples + i] = audio_right[i];     // Channel 1 (right)
+        }
+
+        auto const waveform_shape = std::array<int64_t, 3>{1, 2, static_cast<int64_t>(num_samples)};
+        auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+
+        auto waveform_tensor = Ort::Value::CreateTensor<float>(
+            memory_info,
+            waveform_data.data(),
+            waveform_data.size(),
+            waveform_shape.data(),
+            waveform_shape.size()
+        );
+
+        // Prepare spectrogram input tensor [1, 4, freq, time]
+        // Complex-as-channels: real_left, imag_left, real_right, imag_right
+        auto const spec_size = num_bins * num_frames;
+        auto spectrogram_data = std::vector<float>(4 * spec_size);
+
+        // Channel 0: real components (left)
+        std::copy(spec_left.real.begin(), spec_left.real.end(),
+                  spectrogram_data.begin());
+
+        // Channel 1: imaginary components (left)
+        std::copy(spec_left.imag.begin(), spec_left.imag.end(),
+                  spectrogram_data.begin() + spec_size);
+
+        // Channel 2: real components (right)
+        std::copy(spec_right.real.begin(), spec_right.real.end(),
+                  spectrogram_data.begin() + 2 * spec_size);
+
+        // Channel 3: imaginary components (right)
+        std::copy(spec_right.imag.begin(), spec_right.imag.end(),
+                  spectrogram_data.begin() + 3 * spec_size);
+
+        auto const spec_shape = std::array<int64_t, 4>{
+            1, 4,
+            static_cast<int64_t>(num_bins),
+            static_cast<int64_t>(num_frames)
+        };
+
+        auto spectrogram_tensor = Ort::Value::CreateTensor<float>(
+            memory_info,
+            spectrogram_data.data(),
+            spectrogram_data.size(),
+            spec_shape.data(),
+            spec_shape.size()
+        );
+
+        // Prepare input/output names
+        auto const input_names = std::array{
+            "waveform",
+            "spectrogram"
+        };
+
+        auto const output_names = std::array{
+            "vocals",
+            "drums",
+            "bass",
+            "other"
+        };
+
+        // Prepare input tensor array
+        auto input_tensors = std::vector<Ort::Value>{};
+        input_tensors.push_back(std::move(waveform_tensor));
+        input_tensors.push_back(std::move(spectrogram_tensor));
+
+        std::println("Running ONNX inference...");
+
+        // Run inference
+        auto output_tensors = session_->Run(
+            Ort::RunOptions{nullptr},
+            input_names.data(),
+            input_tensors.data(),
+            input_tensors.size(),
+            output_names.data(),
+            output_names.size()
+        );
+
+        std::println("Inference complete, extracting {} stems", output_tensors.size());
+
+        // Extract output spectrograms (4 stems)
+        auto result = std::vector<Spectrogram>{};
+        result.reserve(4);
+
+        for (auto& tensor : output_tensors) {
+            auto* data = tensor.GetTensorMutableData<float>();
+            auto const shape_info = tensor.GetTensorTypeAndShapeInfo();
+            auto const shape = shape_info.GetShape();
+
+            // Expected output shape: [1, 4, freq, time]
+            // Extract complex-as-channels for each stem
+            auto stem_spec = Spectrogram{
+                .real = std::vector<float>(spec_size),
+                .imag = std::vector<float>(spec_size),
+                .num_frames = num_frames,
+                .num_bins = num_bins
+            };
+
+            // For now, just copy the real components (channel 0)
+            // TODO: Properly handle complex-as-channels output
+            std::copy(data, data + spec_size, stem_spec.real.begin());
+            std::copy(data + spec_size, data + 2 * spec_size, stem_spec.imag.begin());
+
+            result.push_back(std::move(stem_spec));
+        }
+
+        return result;
+
+    } catch (Ort::Exception const& e) {
+        std::println(stderr, "ONNX inference error: {}", e.what());
+        return std::unexpected(ModelError::InferenceFailed);
+    } catch (...) {
+        std::println(stderr, "Unknown error during inference");
+        return std::unexpected(ModelError::InferenceFailed);
+    }
 }
 
 } // namespace stems

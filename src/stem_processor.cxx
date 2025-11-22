@@ -23,7 +23,7 @@ std::pair<std::vector<float>, std::vector<float>> deinterleave_stereo(
 }
 
 // Interleave separate left/right channels into stereo
-[[maybe_unused]] std::vector<float> interleave_stereo(
+std::vector<float> interleave_stereo(
     std::vector<float> const& left,
     std::vector<float> const& right
 ) {
@@ -59,71 +59,72 @@ std::expected<SeparatedStems, ProcessingError> StemProcessor::process(
     // De-interleave stereo input
     auto const [left, right] = deinterleave_stereo(audio);
 
-    // Compute STFT for left channel
-    auto stft_result = stft_.forward(left);
-    if (!stft_result) {
-        std::println(stderr, "STFT failed: {}", error_message(stft_result.error()));
+    // Compute STFT for both channels
+    std::println("Computing STFT for left channel...");
+    auto stft_left_result = stft_.forward(left);
+    if (!stft_left_result) {
+        std::println(stderr, "STFT (left) failed: {}", error_message(stft_left_result.error()));
         return std::unexpected(ProcessingError::StftFailed);
     }
 
-    auto const& spectrogram = stft_result.value();
+    std::println("Computing STFT for right channel...");
+    auto stft_right_result = stft_.forward(right);
+    if (!stft_right_result) {
+        std::println(stderr, "STFT (right) failed: {}", error_message(stft_right_result.error()));
+        return std::unexpected(ProcessingError::StftFailed);
+    }
+
+    auto const& spec_left = stft_left_result.value();
+    auto const& spec_right = stft_right_result.value();
     std::println("STFT completed: {} frames x {} bins",
-                 spectrogram.num_frames, spectrogram.num_bins);
+                 spec_left.num_frames, spec_left.num_bins);
 
-    // Prepare inputs for ONNX model
-    auto inputs_result = prepare_inputs(audio, spectrogram);
-    if (!inputs_result)
-        return std::unexpected(inputs_result.error());
-
-    // Run inference
-    auto inference_result = model_.infer(audio, sample_rate, channels);
+    // Run ONNX inference
+    std::println("Running stem separation inference...");
+    auto inference_result = model_.infer(left, right, spec_left, spec_right);
     if (!inference_result) {
         std::println(stderr, "ONNX inference failed");
         return std::unexpected(ProcessingError::InferenceFailed);
     }
 
-    // For now, return placeholder stems until full inference pipeline is complete
-    // This will be replaced with actual ONNX output processing
-    auto const num_samples = audio.size();
+    auto const& stem_spectrograms = inference_result.value();
+    if (stem_spectrograms.size() != 4) {
+        std::println(stderr, "Expected 4 stems, got {}", stem_spectrograms.size());
+        return std::unexpected(ProcessingError::OutputGenerationFailed);
+    }
+
+    // Apply iSTFT to each stem to convert back to time domain
+    std::println("Converting stems to time domain...");
+    auto vocals_result = stft_.inverse(stem_spectrograms[0]);
+    auto drums_result = stft_.inverse(stem_spectrograms[1]);
+    auto bass_result = stft_.inverse(stem_spectrograms[2]);
+    auto other_result = stft_.inverse(stem_spectrograms[3]);
+
+    if (!vocals_result || !drums_result || !bass_result || !other_result) {
+        std::println(stderr, "iSTFT conversion failed for one or more stems");
+        return std::unexpected(ProcessingError::OutputGenerationFailed);
+    }
+
+    // Interleave left and right channels for each stem
+    // For now, using mono output (same data for both channels)
+    // TODO: Process right channel separately and properly interleave
+    auto const& vocals = vocals_result.value();
+    auto const& drums = drums_result.value();
+    auto const& bass = bass_result.value();
+    auto const& other = other_result.value();
+
+    std::println("Stem separation complete!");
+    std::println("  Vocals: {} samples", vocals.size());
+    std::println("  Drums: {} samples", drums.size());
+    std::println("  Bass: {} samples", bass.size());
+    std::println("  Other: {} samples", other.size());
+
     return SeparatedStems{
-        .vocals = std::vector<float>(num_samples, 0.0f),
-        .drums = std::vector<float>(num_samples, 0.0f),
-        .bass = std::vector<float>(num_samples, 0.0f),
-        .other = std::vector<float>(num_samples, 0.0f)
+        .vocals = interleave_stereo(vocals, vocals),  // Duplicate mono to stereo
+        .drums = interleave_stereo(drums, drums),
+        .bass = interleave_stereo(bass, bass),
+        .other = interleave_stereo(other, other)
     };
-}
-
-std::expected<std::vector<Ort::Value>, ProcessingError> StemProcessor::prepare_inputs(
-    std::vector<float> const& audio,
-    Spectrogram const& spec
-) {
-    // Demucs htdemucs model expects dual inputs:
-    // 1. Time-domain waveform: [batch, channels, time]
-    // 2. Magnitude spectrogram: [batch, channels, freq, time]
-    //
-    // This is a placeholder - full implementation requires:
-    // - Proper tensor shape preparation
-    // - Complex-as-channels representation
-    // - Batch dimension handling
-
-    std::println("Preparing ONNX inputs (placeholder):");
-    std::println("  Audio samples: {}", audio.size());
-    std::println("  Spectrogram: {} frames x {} bins", spec.num_frames, spec.num_bins);
-
-    // Return empty for now - will be implemented after verifying model input shapes
-    return std::vector<Ort::Value>{};
-}
-
-std::expected<SeparatedStems, ProcessingError> StemProcessor::extract_stems(
-    [[maybe_unused]] std::vector<Ort::Value>& outputs
-) {
-    // Extract and process ONNX output tensors
-    // Apply iSTFT to convert spectrograms back to time domain
-    // This is a placeholder for the complete implementation
-
-    std::println("Extracting stems from ONNX outputs (placeholder)");
-
-    return std::unexpected(ProcessingError::OutputGenerationFailed);
 }
 
 } // namespace stems

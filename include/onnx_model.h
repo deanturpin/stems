@@ -1,5 +1,6 @@
 #pragma once
 
+#include "stft.h"
 #include <onnxruntime_cxx_api.h>
 #include <expected>
 #include <memory>
@@ -24,12 +25,13 @@ public:
     static std::expected<OnnxModel, ModelError> load(std::string_view);
 
     // Run inference on audio data
-    // Input: interleaved stereo audio samples (float)
-    // Output: 4 stems (vocals, drums, bass, other), each stereo
-    std::expected<std::vector<std::vector<float>>, ModelError> infer(
-        std::vector<float> const&,
-        int sample_rate,
-        int channels
+    // Input: time-domain audio and frequency-domain spectrograms (left and right channels)
+    // Output: 4 spectrograms (vocals, drums, bass, other) for each channel
+    std::expected<std::vector<Spectrogram>, ModelError> infer(
+        std::vector<float> const& audio_left,
+        std::vector<float> const& audio_right,
+        Spectrogram const& spec_left,
+        Spectrogram const& spec_right
     );
 
     // Get model info

@@ -60,17 +60,6 @@ public:
 private:
     OnnxModel model_;
     StftProcessor stft_;
-
-    // Prepare input tensors for ONNX model
-    std::expected<std::vector<Ort::Value>, ProcessingError> prepare_inputs(
-        std::vector<float> const&,
-        Spectrogram const&
-    );
-
-    // Extract stems from ONNX output tensors
-    std::expected<SeparatedStems, ProcessingError> extract_stems(
-        std::vector<Ort::Value>&
-    );
 };
 
 } // namespace stems
