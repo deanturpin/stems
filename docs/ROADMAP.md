@@ -58,6 +58,14 @@ Add spectrogram and waveform visualization for debugging and quality verificatio
 - [ ] AIFF support (lossless)
 - Maintain "lossless only" policy
 
+### Channel Support (#future-channels)
+**Priority: Medium**
+
+- [ ] Mono input support (upmix to stereo for processing)
+- [ ] Multichannel support (5.1, 7.1 surround)
+- [ ] Per-channel stem separation
+- Currently: **Stereo only** (2 channels required)
+
 ### Performance Optimizations (#future-perf)
 **Priority: Low**
 

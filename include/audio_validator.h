@@ -33,7 +33,7 @@ constexpr std::string_view error_message(ValidationError error) {
         case ValidationError::FileNotFound:
             return "File not found or cannot be opened";
         case ValidationError::UnsupportedFormat:
-            return "Unsupported audio format (only WAV supported currently)";
+            return "Unsupported audio format (only stereo WAV supported currently)";
         case ValidationError::LossyFormat:
             return "Lossy format not supported";
         case ValidationError::CorruptedFile:

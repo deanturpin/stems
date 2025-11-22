@@ -37,6 +37,10 @@ validate_audio_file(std::string_view path) {
   if (!is_supported_format(sf_info.format))
     return std::unexpected(ValidationError::UnsupportedFormat);
 
+  // Only stereo is supported for now (mono/multichannel support is future work)
+  if (sf_info.channels != 2)
+    return std::unexpected(ValidationError::UnsupportedFormat);
+
   return AudioInfo{.sample_rate = sf_info.samplerate,
                    .channels = sf_info.channels,
                    .frames = sf_info.frames,
