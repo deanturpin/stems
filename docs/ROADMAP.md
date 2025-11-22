@@ -2,18 +2,22 @@
 
 ## Current Sprint: Core Functionality
 
+**Status: Pipeline Complete - Ready for Model**
+
 - [x] Build system with C++23
 - [x] Audio file validation (WAV)
 - [x] ONNX Runtime integration
 - [x] FFTW3 integration (fftw3f for float precision)
 - [x] Compile-time validation with constexpr/static_assert
 - [x] STFT/iSTFT implementation (4096 window, 1024 hop, Hann window)
-- [x] Stem processor scaffold with ONNX integration points
+- [x] ONNX tensor preparation (complex-as-channels, dual inputs)
+- [x] Full inference pipeline implementation
+- [x] iSTFT reconstruction for output stems
 - [x] Output WAV file generation (4 stems)
-- [ ] Obtain htdemucs.onnx model file
-- [ ] Complete ONNX tensor preparation (complex-as-channels)
-- [ ] Full inference pipeline implementation
+- [ ] **Obtain htdemucs.onnx model file** ← Blocking next steps
+- [ ] Verify tensor shapes match actual model expectations
 - [ ] End-to-end test with example.wav
+- [ ] Implement proper stereo separation (currently duplicating mono for L/R)
 
 ## Future Enhancements
 
