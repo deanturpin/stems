@@ -14,7 +14,7 @@ endif()
 # Find dependencies
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SNDFILE REQUIRED sndfile)
-pkg_check_modules(FFTW3 REQUIRED fftw3)
+pkg_check_modules(FFTW3 REQUIRED fftw3f)
 
 # ONNX Runtime
 find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
@@ -46,6 +46,9 @@ add_executable(stems
     src/main.cxx
     src/audio_validator.cxx
     src/onnx_model.cxx
+    src/stft.cxx
+    src/stem_processor.cxx
+    src/audio_writer.cxx
 )
 
 target_link_libraries(stems
