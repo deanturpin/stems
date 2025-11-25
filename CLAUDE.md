@@ -46,45 +46,67 @@ stems *.wav --batch --jobs 4
 ### Dependencies
 - Latest C++ compiler with C++23 support (GCC 13+, Clang 16+)
 - CMake 3.25+
-- ONNX Runtime
-- libsndfile (audio I/O, supports WAV/FLAC/AIFF)
+- ONNX Runtime (model inference)
+- libsndfile (audio I/O for WAV/FLAC/AIFF)
+- FFTW3 (Fast Fourier Transform library)
 
 **Note**: Track latest C++ standard and Linux versions - update compiler requirements as new standards become available.
+
+CMakeLists.txt uses pkg-config to find libsndfile and FFTW3, and manual find_path/find_library for ONNX Runtime (checks /opt/homebrew, /usr/local, /usr).
 
 ### Platform-specific Setup
 ```bash
 # macOS
-brew install cmake onnxruntime libsndfile
+brew install cmake onnxruntime libsndfile fftw
 
 # Ubuntu/Debian
-apt install cmake libonnxruntime-dev libsndfile1-dev
+apt install cmake libonnxruntime-dev libsndfile1-dev libfftw3-dev g++-13
 
 # Arch Linux
-pacman -S cmake onnxruntime libsndfile
+pacman -S cmake onnxruntime libsndfile fftw
 ```
 
 ## Code Structure
 
-- `src/`: Core stem separation logic (ONNX wrapper, audio processing, CLI)
-- `include/`: Public headers
-- `models/`: ONNX model files (downloaded separately, not in git)
-- `tests/`: Unit tests
-- `CMakeLists.txt`: CMake build configuration
+- `src/`: Implementation files (main.cxx, stem_processor.cxx, onnx_model.cxx, stft.cxx, audio_validator.cxx, audio_writer.cxx)
+- `include/`: Public headers matching src/ structure
+- `models/`: ONNX model files (downloaded separately, not in git - see models/README.md)
+- `docs/`: Architecture and design documentation (SIGNAL_PROCESSING.md, ROADMAP.md)
+- `tests/`: Unit tests (placeholder structure)
+- `CMakeLists.txt`: CMake build configuration with compiler warnings (-Wall -Wextra -Wpedantic -Werror)
 - `Makefile`: Top-level convenience wrapper
+- `watch.sh`: Development helper for continuous builds
 
 ## Key Implementation Details
 
+### Core Architecture Components
+
+The processing pipeline follows this flow:
+1. **AudioValidator** (`audio_validator.h/cxx`) - Validates input file format and extracts metadata
+2. **STFT** (`stft.h/cxx`) - Short-Time Fourier Transform preprocessing using FFTW3
+3. **OnnxModel** (`onnx_model.h/cxx`) - ONNX Runtime wrapper for model inference
+4. **StemProcessor** (`stem_processor.h/cxx`) - Orchestrates the complete separation pipeline
+5. **AudioWriter** (`audio_writer.h/cxx`) - Writes separated stems to disk
+
+### Error Handling Strategy
+- Uses `std::expected<T, Error>` throughout (C++23 feature, no exceptions)
+- Each component defines its own error enum
+- Error messages via `constexpr` functions for zero runtime overhead
+- Fail fast on validation errors before expensive processing
+
 ### Model Integration
-- Use ONNX Runtime C++ API for model inference
-- Models live in `models/` directory (excluded from git due to size)
-- Primary model: htdemucs.onnx (~300MB)
-- Alternative: mdx_extra.onnx (faster, lower quality)
+- ONNX Runtime C++ API for model inference
+- Models in `models/` directory (excluded from git due to size)
+- Primary model: htdemucs.onnx or htdemucs.ort (~300MB)
+- Model path defaults to `models/htdemucs.onnx`, can be overridden via CLI
+- See `models/README.md` for conversion instructions using sevagh/demucs.onnx
 
 ### Audio Processing
-- Input/output via libsndfile (WAV, FLAC, AIFF only - reject MP3 and lossy formats)
+- Input/output via libsndfile (WAV supported, FLAC/AIFF coming soon)
 - 4-stem output: vocals, drums, bass, other
-- Multi-threaded batch processing for parallel jobs
-- Validate input format before processing (fail fast on lossy formats)
+- STFT preprocessing uses FFTW3 (selected for performance, see `docs/SIGNAL_PROCESSING.md`)
+- Validation happens before processing to fail fast on unsupported formats
+- Currently single-file processing, batch mode planned
 
 ### Future Web Service (not current priority)
 - Crow C++ HTTP server
