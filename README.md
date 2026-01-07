@@ -140,11 +140,13 @@ stems/
 ## Performance
 
 ### CPU-Only (8-core VPS)
+
 - 4-minute song: ~5-8 minutes (htdemucs)
 - 4-minute song: ~3-5 minutes (mdx_extra)
 - Parallel batch: 3 jobs concurrently
 
 ### With GPU (CUDA)
+
 - 4-minute song: ~30-60 seconds
 - 10-50x speedup over CPU
 
@@ -190,3 +192,4 @@ MIT Licence - see [LICENCE](LICENCE) for details.
 - [Demucs Paper](https://arxiv.org/abs/2111.03600) - Hybrid Spectrogram and Waveform Source Separation
 - [ONNX Runtime Documentation](https://onnxruntime.ai/docs/)
 - [Audio Source Separation Benchmarks](https://paperswithcode.com/task/audio-source-separation)
+
