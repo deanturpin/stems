@@ -19,7 +19,9 @@ std::expected<void, WriteError> write_wav_file(
         .frames = static_cast<sf_count_t>(data.size() / static_cast<std::size_t>(channels)),
         .samplerate = sample_rate,
         .channels = channels,
-        .format = SF_FORMAT_WAV | SF_FORMAT_PCM_16
+        .format = SF_FORMAT_WAV | SF_FORMAT_PCM_16,
+        .sections = 0,
+        .seekable = 0
     };
 
     // Open file for writing

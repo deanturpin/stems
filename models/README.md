@@ -6,9 +6,19 @@ This directory contains ONNX model files for stem separation. Models are exclude
 
 The Demucs v4 (htdemucs) model needs to be converted from PyTorch to ONNX format. There are no pre-built downloads available - you must convert it yourself.
 
-### Required: Convert Using sevagh/demucs.onnx
+### Option 1: Automated Script (Recommended)
 
-Follow these steps to convert the official Demucs model to ONNX format:
+Run the provided script to automatically download and convert the model:
+
+```bash
+./scripts/download_model.sh
+```
+
+This handles all steps automatically and takes 5-10 minutes to complete.
+
+### Option 2: Manual Conversion
+
+If you prefer to convert manually or the script fails:
 
 ```bash
 # 1. Clone with submodules (includes vendored dependencies)

@@ -4,6 +4,7 @@ BUILD_DIR := build
 
 all: $(BUILD_DIR)
 	@cmake --build $(BUILD_DIR)
+	@build/stems example.wav
 
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)

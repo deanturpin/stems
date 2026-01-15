@@ -102,13 +102,13 @@ Requires latest C++ compiler with C++23 support.
 
 ```bash
 # macOS
-brew install cmake onnxruntime libsndfile
+brew install cmake onnxruntime libsndfile fftw
 
 # Latest Ubuntu/Debian
-apt install cmake libonnxruntime-dev libsndfile1-dev g++-13
+apt install cmake libonnxruntime-dev libsndfile1-dev libfftw3-dev g++-13
 
 # Arch Linux (rolling release - always latest)
-pacman -S cmake onnxruntime libsndfile
+pacman -S cmake onnxruntime libsndfile fftw
 ```
 
 ### Build
@@ -118,6 +118,19 @@ git clone https://github.com/deanturpin/stems.git
 cd stems
 make
 ```
+
+### Get the Model
+
+The Demucs model must be converted from PyTorch to ONNX format (not included in git due to size):
+
+```bash
+# Automated conversion (recommended)
+./scripts/download_model.sh
+
+# Or follow manual steps in models/README.md
+```
+
+This downloads and converts the model (~300MB, takes 5-10 minutes).
 
 ## Project Structure
 

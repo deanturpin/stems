@@ -7,9 +7,28 @@ namespace stems {
 
 namespace {
 
-// Check if file exists
-bool file_exists(std::string_view path) {
-    return std::filesystem::exists(path);
+// Minimum expected file size for htdemucs model (300MB typical, allow 100MB minimum)
+constexpr auto min_model_size = 100'000'000uz; // 100 MB
+
+// Check if file exists and has reasonable size
+std::expected<void, ModelError> validate_model_file(std::string_view path) {
+    if (!std::filesystem::exists(path))
+        return std::unexpected(ModelError::FileNotFound);
+
+    auto const file_size = std::filesystem::file_size(path);
+    if (file_size < min_model_size) {
+        std::println(stderr, "Model file is too small: {} bytes", file_size);
+        std::println(stderr, "Expected at least {} bytes (~300MB for htdemucs)", min_model_size);
+        std::println(stderr, "");
+        std::println(stderr, "The model file appears to be corrupted or incomplete.");
+        std::println(stderr, "Please regenerate it using the instructions in models/README.md:");
+        std::println(stderr, "  1. git clone --recurse-submodules https://github.com/sevagh/demucs.onnx");
+        std::println(stderr, "  2. Follow the conversion steps in the README");
+        std::println(stderr, "  3. Copy the generated model (~300MB) to {}", path);
+        return std::unexpected(ModelError::InvalidModel);
+    }
+
+    return {};
 }
 
 } // anonymous namespace
@@ -23,8 +42,9 @@ OnnxModel::OnnxModel(
     model_path_(std::move(path)) {}
 
 std::expected<OnnxModel, ModelError> OnnxModel::load(std::string_view model_path) {
-    if (!file_exists(model_path))
-        return std::unexpected(ModelError::FileNotFound);
+    // Validate model file exists and has reasonable size
+    if (auto const validation = validate_model_file(model_path); !validation)
+        return std::unexpected(validation.error());
 
     try {
         // Create ONNX Runtime environment

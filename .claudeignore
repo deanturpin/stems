@@ -1,0 +1,57 @@
+# Build artifacts and CMake generated files
+build/
+cmake-build-*/
+_deps/
+*.o
+*.a
+*.so
+*.dylib
+CMakeCache.txt
+CMakeFiles/
+
+# Third-party dependencies (already in your codebase via CMake FetchContent)
+# These are external libraries that don't need analysis
+build/_deps/httplib-src/
+build/_deps/httplib-subbuild/
+
+# Compiled executables
+/lft
+/ticker
+/backtest
+build/lft
+build/ticker
+build/backtest
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS system files
+.DS_Store
+
+# Environment and secrets
+.env
+.env.local
+*.local
+
+# Documentation that's deployment-specific (useful for reference but not code analysis)
+VPS_DEPLOYMENT.md
+Dockerfile
+docker-compose.yml
+
+# Git internals
+.git/
+
+# Log files and runtime data
+*.log
+logs/
+*.csv
+*.json.bak
+
+# Backup files
+*~
+*.bak
+*.tmp
