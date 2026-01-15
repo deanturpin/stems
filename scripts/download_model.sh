@@ -19,7 +19,28 @@ echo ""
 
 # Check for required tools
 command -v git >/dev/null 2>&1 || { echo "Error: git is required"; exit 1; }
-command -v python3 >/dev/null 2>&1 || { echo "Error: python3 is required"; exit 1; }
+
+# Find suitable Python version (3.9-3.12, onnxruntime doesn't support 3.13+ yet)
+PYTHON_CMD=""
+for pyver in python3.12 python3.11 python3.10 python3.9 python3; do
+    if command -v "$pyver" >/dev/null 2>&1; then
+        PY_VERSION=$("$pyver" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+        PY_MAJOR=$(echo "$PY_VERSION" | cut -d. -f1)
+        PY_MINOR=$(echo "$PY_VERSION" | cut -d. -f2)
+
+        if [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -ge 9 ] && [ "$PY_MINOR" -le 12 ]; then
+            PYTHON_CMD="$pyver"
+            echo "Found suitable Python: $pyver (version $PY_VERSION)"
+            break
+        fi
+    fi
+done
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo "Error: Python 3.9-3.12 required (onnxruntime not yet compatible with 3.13+)"
+    echo "Install with: brew install python@3.12"
+    exit 1
+fi
 
 # Create work directory
 rm -rf "${WORK_DIR}"
@@ -32,7 +53,7 @@ cd demucs.onnx
 
 echo ""
 echo "Step 2/5: Setting up Python environment..."
-python3 -m venv venv
+"$PYTHON_CMD" -m venv venv
 source venv/bin/activate
 
 echo ""
