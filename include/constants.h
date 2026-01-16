@@ -40,6 +40,13 @@ namespace separation {
 // Number of output stems (vocals, drums, bass, other)
 constexpr auto num_stems = 4uz;
 
+// Model chunk size (fixed input dimension from ONNX export)
+// htdemucs model expects exactly 343,980 samples per chunk
+constexpr auto model_chunk_size = 343980uz;  // ~7.8 seconds at 44.1kHz
+
+// Overlap between chunks for smooth blending (5% of chunk size)
+constexpr auto chunk_overlap = model_chunk_size / 20uz;  // 17,199 samples (~0.39s)
+
 // Stem names in order
 constexpr std::array<std::string_view, num_stems> stem_names = {
     "vocals",

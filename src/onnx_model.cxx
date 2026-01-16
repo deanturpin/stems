@@ -190,30 +190,57 @@ std::expected<std::vector<Spectrogram>, ModelError> OnnxModel::infer(
             output_names.size()
         );
 
-        std::println("Inference complete, extracting {} stems", output_tensors.size());
+        std::println("Inference complete, got {} output tensors", output_tensors.size());
 
-        // Extract output spectrograms (4 stems)
+        // The model outputs TWO tensors:
+        // output_tensors[0] = "output" [1, 4, 4, 2048, 336] - spectrogram outputs
+        // output_tensors[1] = "add_67" [1, 4, 2, 343980] - time-domain waveforms (what we want!)
+        //
+        // We use the time-domain output directly to avoid iSTFT conversion
+        // Shape: [batch=1, stems=4, channels=2, samples=343980]
+
+        if (output_tensors.size() < 2) {
+            std::println(stderr, "Expected 2 output tensors, got {}", output_tensors.size());
+            return std::unexpected(ModelError::InferenceFailed);
+        }
+
+        // Get the time-domain output (add_67)
+        auto& time_domain_output = output_tensors[1];
+        auto* data = time_domain_output.GetTensorMutableData<float>();
+        auto const shape_info = time_domain_output.GetTensorTypeAndShapeInfo();
+        auto const shape = shape_info.GetShape();
+
+        // Verify shape: [1, 4, 2, 343980]
+        if (shape.size() != 4 or shape[1] != 4 or shape[2] != 2) {
+            std::println(stderr, "Unexpected time-domain output shape");
+            return std::unexpected(ModelError::InferenceFailed);
+        }
+
+        auto const num_stems = static_cast<std::size_t>(shape[1]);
+        auto const num_channels = static_cast<std::size_t>(shape[2]);
+        auto const samples_per_stem = static_cast<std::size_t>(shape[3]);
+
+        std::println("Extracted {} stems with {} channels, {} samples each",
+                     num_stems, num_channels, samples_per_stem);
+
+        // For now, convert to "fake" spectrograms just to match the interface
+        // TODO: Change interface to return time-domain audio directly
         auto result = std::vector<Spectrogram>{};
-        result.reserve(4);
+        result.reserve(num_stems);
 
-        for (auto& tensor : output_tensors) {
-            auto* data = tensor.GetTensorMutableData<float>();
-            auto const shape_info = tensor.GetTensorTypeAndShapeInfo();
-            auto const shape = shape_info.GetShape();
+        for (auto stem_idx = 0uz; stem_idx < num_stems; ++stem_idx) {
+            // Extract left channel for this stem and store as "real" component
+            // Shape indexing: data[batch * (stems * channels * samples) + stem * (channels * samples) + channel * samples + sample]
+            auto const stem_offset = stem_idx * num_channels * samples_per_stem;
+            auto const left_offset = stem_offset + 0 * samples_per_stem;  // Channel 0 (left)
 
-            // Expected output shape: [1, 4, freq, time]
-            // Extract complex-as-channels for each stem
+            // Store time-domain audio in the real component (misuse of Spectrogram structure)
             auto stem_spec = Spectrogram{
-                .real = std::vector<float>(spec_size),
-                .imag = std::vector<float>(spec_size),
-                .num_frames = num_frames,
-                .num_bins = num_bins
+                .real = std::vector<float>(data + left_offset, data + left_offset + samples_per_stem),
+                .imag = std::vector<float>(samples_per_stem, 0.0f),  // Unused
+                .num_frames = 1,  // Dummy value
+                .num_bins = samples_per_stem  // Store sample count here (hack)
             };
-
-            // For now, just copy the real components (channel 0)
-            // TODO: Properly handle complex-as-channels output
-            std::copy(data, data + spec_size, stem_spec.real.begin());
-            std::copy(data + spec_size, data + 2 * spec_size, stem_spec.imag.begin());
 
             result.push_back(std::move(stem_spec));
         }

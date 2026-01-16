@@ -16,7 +16,7 @@ std::expected<void, WriteError> write_wav_file(
 ) {
     // Configure WAV format
     auto sf_info = SF_INFO{
-        .frames = static_cast<sf_count_t>(data.size() / static_cast<std::size_t>(channels)),
+        .frames = 0,  // Must be 0 for output files (libsndfile requirement)
         .samplerate = sample_rate,
         .channels = channels,
         .format = SF_FORMAT_WAV | SF_FORMAT_PCM_16,
@@ -33,17 +33,18 @@ std::expected<void, WriteError> write_wav_file(
     }
 
     // Write audio data
+    auto const expected_frames = static_cast<sf_count_t>(data.size() / static_cast<std::size_t>(channels));
     auto const frames_written = sf_writef_float(
         file,
         data.data(),
-        static_cast<sf_count_t>(data.size() / static_cast<std::size_t>(channels))
+        expected_frames
     );
 
     sf_close(file);
 
-    if (frames_written != sf_info.frames) {
+    if (frames_written != expected_frames) {
         std::println(stderr, "Write failed: expected {} frames, wrote {}",
-                     sf_info.frames, frames_written);
+                     expected_frames, frames_written);
         return std::unexpected(WriteError::WriteFailed);
     }
 

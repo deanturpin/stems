@@ -27,12 +27,15 @@ std::vector<float> make_hann_window(std::size_t size) {
     return window;
 }
 
-// Calculate number of frames for STFT
+// Calculate number of frames for STFT with center padding (Demucs style)
+// Center padding: audio is padded on both sides so frames are centered on samples
 std::size_t calculate_num_frames(std::size_t signal_length) {
-    if (signal_length < stft_params::window_size)
+    if (signal_length == 0)
         return 0uz;
 
-    return 1uz + (signal_length - stft_params::window_size) / stft_params::hop_size;
+    // With center padding: num_frames = signal_length / hop_size + 1
+    // This matches PyTorch's torch.stft with center=True
+    return signal_length / stft_params::hop_size + 1uz;
 }
 
 } // anonymous namespace
@@ -62,7 +65,37 @@ void FftwPlan::execute() {
     fftwf_execute(plan_);
 }
 
-StftProcessor::StftProcessor() : window_(make_hann_window(stft_params::window_size)) {}
+StftProcessor::StftProcessor() : window_(make_hann_window(stft_params::window_size)) {
+    initialize_fftw();
+}
+
+StftProcessor::~StftProcessor() {
+    if (forward_plan_)
+        fftwf_destroy_plan(forward_plan_);
+    if (fftw_input_)
+        fftwf_free(fftw_input_);
+    if (fftw_output_)
+        fftwf_free(fftw_output_);
+}
+
+bool StftProcessor::initialize_fftw() {
+    // Allocate FFTW buffers once
+    fftw_input_ = fftwf_alloc_real(stft_params::fft_size);
+    fftw_output_ = fftwf_alloc_complex(stft_params::num_bins);
+
+    if (!fftw_input_ or !fftw_output_)
+        return false;
+
+    // Create FFTW plan once
+    forward_plan_ = fftwf_plan_dft_r2c_1d(
+        static_cast<int>(stft_params::fft_size),
+        fftw_input_,
+        fftw_output_,
+        FFTW_MEASURE  // Use MEASURE for better performance
+    );
+
+    return forward_plan_ != nullptr;
+}
 
 void StftProcessor::compute_hann_window() {
     window_ = make_hann_window(stft_params::window_size);
@@ -71,6 +104,9 @@ void StftProcessor::compute_hann_window() {
 std::expected<Spectrogram, StftError> StftProcessor::forward(std::span<float const> audio) {
     if (!is_valid_input(audio))
         return std::unexpected(StftError::InvalidInput);
+
+    if (!forward_plan_ or !fftw_input_ or !fftw_output_)
+        return std::unexpected(StftError::PlanningFailed);
 
     auto const num_frames = calculate_num_frames(audio.size());
     if (num_frames == 0uz)
@@ -84,55 +120,39 @@ std::expected<Spectrogram, StftError> StftProcessor::forward(std::span<float con
         .num_bins = stft_params::num_bins
     };
 
-    // Allocate FFTW buffers
-    auto* input = fftwf_alloc_real(stft_params::fft_size);
-    auto* output = fftwf_alloc_complex(stft_params::num_bins);
+    // Center padding: pad signal by window_size/2 on each side
+    // This matches torch.stft(center=True) behavior
+    auto constexpr pad_size = stft_params::window_size / 2;
 
-    if (!input || !output) {
-        if (input) fftwf_free(input);
-        if (output) fftwf_free(output);
-        return std::unexpected(StftError::AllocationFailed);
-    }
-
-    // Create FFTW plan for real-to-complex transform
-    auto* plan = fftwf_plan_dft_r2c_1d(
-        static_cast<int>(stft_params::fft_size),
-        input,
-        output,
-        FFTW_ESTIMATE
-    );
-
-    if (!plan) {
-        fftwf_free(input);
-        fftwf_free(output);
-        return std::unexpected(StftError::PlanningFailed);
-    }
-
-    auto fftw_plan = FftwPlan{plan};
-
-    // Process each frame
+    // Process each frame with center padding
     for (auto frame_idx = 0uz; frame_idx < num_frames; ++frame_idx) {
-        auto const start_pos = frame_idx * stft_params::hop_size;
+        auto const center_pos = frame_idx * stft_params::hop_size;
+        auto const start_pos = center_pos > pad_size ? center_pos - pad_size : 0uz;
 
         // Apply window and copy to FFTW input buffer
         for (auto i = 0uz; i < stft_params::window_size; ++i) {
-            auto const audio_idx = start_pos + i;
-            input[i] = (audio_idx < audio.size()) ? audio[audio_idx] * window_[i] : 0.0f;
+            // Calculate position in original audio (accounting for padding)
+            auto const padded_pos = start_pos + i;
+            auto const audio_idx = padded_pos >= pad_size ? padded_pos - pad_size : 0uz;
+
+            // Zero-pad before start or after end
+            if (padded_pos < pad_size or audio_idx >= audio.size()) {
+                fftw_input_[i] = 0.0f;
+            } else {
+                fftw_input_[i] = audio[audio_idx] * window_[i];
+            }
         }
 
-        // Execute FFT
-        fftw_plan.execute();
+        // Execute FFT using cached plan
+        fftwf_execute(forward_plan_);
 
         // Copy complex results to spectrogram
         for (auto bin = 0uz; bin < stft_params::num_bins; ++bin) {
             auto const spec_idx = frame_idx * stft_params::num_bins + bin;
-            spec.real[spec_idx] = output[bin][0]; // Real part
-            spec.imag[spec_idx] = output[bin][1]; // Imaginary part
+            spec.real[spec_idx] = fftw_output_[bin][0]; // Real part
+            spec.imag[spec_idx] = fftw_output_[bin][1]; // Imaginary part
         }
     }
-
-    fftwf_free(input);
-    fftwf_free(output);
 
     std::println("STFT forward: {} samples -> {} frames x {} bins",
                  audio.size(), num_frames, stft_params::num_bins);

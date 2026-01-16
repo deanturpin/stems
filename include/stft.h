@@ -36,18 +36,21 @@ static_assert(error_message(StftError::InvalidInput) == "Invalid input data");
 static_assert(error_message(StftError::PlanningFailed) == "FFTW plan creation failed");
 static_assert(!error_message(StftError::InvalidWindowSize).empty());
 
-// STFT parameters for Demucs
+// STFT parameters for Demucs htdemucs model
+// These must match the model's expected dimensions exactly
 namespace stft_params {
-    constexpr auto window_size = 4096uz;      // Standard for music separation
-    constexpr auto hop_size = 1024uz;         // 75% overlap
+    constexpr auto window_size = 4096uz;      // Demucs uses nfft=4096
+    constexpr auto hop_size = 1024uz;         // hop_length = nfft // 4
     constexpr auto fft_size = window_size;
-    constexpr auto num_bins = fft_size / 2 + 1; // For real FFT
+    constexpr auto num_bins = fft_size / 2;   // Model expects 2048 bins (not 2049)
+                                               // Demucs uses freqs = nfft // 2
 
     // Verify parameters at compile time
     static_assert(window_size > 0);
     static_assert(hop_size > 0);
     static_assert(hop_size <= window_size);
     static_assert((window_size & (window_size - 1)) == 0, "Window size must be power of 2");
+    static_assert(num_bins == 2048, "Model expects exactly 2048 frequency bins");
 }
 
 // Complex spectrogram representation
@@ -84,7 +87,7 @@ private:
 class StftProcessor {
 public:
     StftProcessor();
-    ~StftProcessor() = default;
+    ~StftProcessor();
 
     // Forward transform: time domain -> frequency domain
     std::expected<Spectrogram, StftError> forward(std::span<float const>);
@@ -96,8 +99,16 @@ private:
     // Hann window for smooth transitions
     std::vector<float> window_;
 
+    // Cached FFTW plan and buffers for forward transform
+    fftwf_plan forward_plan_ = nullptr;
+    float* fftw_input_ = nullptr;
+    fftwf_complex* fftw_output_ = nullptr;
+
     // Pre-compute window coefficients
     void compute_hann_window();
+
+    // Initialize FFTW resources
+    bool initialize_fftw();
 };
 
 } // namespace stems
