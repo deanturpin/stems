@@ -86,7 +86,11 @@ pip install --quiet onnxscript  # Required for ONNX export but not in requiremen
 echo ""
 echo "Step 4/5: Converting PyTorch model to ONNX (this may take several minutes)..."
 # Use standard demucs.onnx conversion script (our dynamic script has PyTorch export API issues)
-python ./scripts/convert-pth-to-onnx.py ./onnx-models --model "${MODEL_NAME}"
+if [ "$MODEL_TYPE" = "6" ]; then
+    python ./scripts/convert-pth-to-onnx.py ./onnx-models --six-source
+else
+    python ./scripts/convert-pth-to-onnx.py ./onnx-models
+fi
 
 echo ""
 echo "Step 5/5: Checking model output..."
