@@ -109,14 +109,23 @@ if [ ! -f "${MODEL_SOURCE}" ]; then
     exit 1
 fi
 
-# Check file size
+# Check file size (including external data if present)
 MODEL_SIZE=$(stat -f%z "${MODEL_SOURCE}" 2>/dev/null || stat -c%s "${MODEL_SOURCE}")
-MODEL_SIZE_MB=$((MODEL_SIZE / 1024 / 1024))
+TOTAL_SIZE=${MODEL_SIZE}
 
-if [ "${MODEL_SIZE_MB}" -lt 100 ]; then
+# Check for external data file
+if [ -f "${MODEL_SOURCE}.data" ]; then
+    DATA_SIZE=$(stat -f%z "${MODEL_SOURCE}.data" 2>/dev/null || stat -c%s "${MODEL_SOURCE}.data")
+    TOTAL_SIZE=$((MODEL_SIZE + DATA_SIZE))
+    echo "Found external data file: $(( DATA_SIZE / 1024 / 1024 ))MB"
+fi
+
+MODEL_SIZE_MB=$((TOTAL_SIZE / 1024 / 1024))
+
+if [ "${MODEL_SIZE_MB}" -lt 10 ]; then
     echo ""
-    echo "Error: Model file is too small (${MODEL_SIZE_MB}MB)"
-    echo "Expected approximately 300MB"
+    echo "Error: Model file is too small (${MODEL_SIZE_MB}MB total)"
+    echo "Expected approximately 50-300MB depending on model"
     exit 1
 fi
 
