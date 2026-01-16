@@ -165,17 +165,17 @@ std::expected<SeparatedStems, ProcessingError> StemProcessor::process(
         }
 
         // Model outputs time-domain audio directly (stored in spec.real)
-        // No need for iSTFT conversion!
-        auto const& vocals_audio = stem_specs[0].real;
-        auto const& drums_audio = stem_specs[1].real;
-        auto const& bass_audio = stem_specs[2].real;
-        auto const& other_audio = stem_specs[3].real;
+        // htdemucs outputs in order: drums, bass, other, vocals
+        auto const& drums_audio = stem_specs[0].real;
+        auto const& bass_audio = stem_specs[1].real;
+        auto const& other_audio = stem_specs[2].real;
+        auto const& vocals_audio = stem_specs[3].real;
 
         // Blend chunks into output with crossfading
-        blend_chunk(vocals_out, vocals_audio, offset, overlap, is_first, is_last);
         blend_chunk(drums_out, drums_audio, offset, overlap, is_first, is_last);
         blend_chunk(bass_out, bass_audio, offset, overlap, is_first, is_last);
         blend_chunk(other_out, other_audio, offset, overlap, is_first, is_last);
+        blend_chunk(vocals_out, vocals_audio, offset, overlap, is_first, is_last);
     }
 
     std::println("Stem separation complete!");

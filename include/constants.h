@@ -47,12 +47,13 @@ constexpr auto model_chunk_size = 343980uz;  // ~7.8 seconds at 44.1kHz
 // Overlap between chunks for smooth blending (5% of chunk size)
 constexpr auto chunk_overlap = model_chunk_size / 20uz;  // 17,199 samples (~0.39s)
 
-// Stem names in order
+// Stem names in order (as output by htdemucs model)
+// Model outputs: drums, bass, other, vocals (in that order)
 constexpr std::array<std::string_view, num_stems> stem_names = {
-    "vocals",
     "drums",
     "bass",
-    "other"
+    "other",
+    "vocals"
 };
 
 // Get stem name by index
@@ -71,13 +72,13 @@ constexpr std::size_t stem_index(std::string_view name) {
 // Compile-time tests
 static_assert(num_stems == 4);
 static_assert(stem_names.size() == num_stems);
-static_assert(stem_name(0) == "vocals");
-static_assert(stem_name(1) == "drums");
-static_assert(stem_name(2) == "bass");
-static_assert(stem_name(3) == "other");
+static_assert(stem_name(0) == "drums");
+static_assert(stem_name(1) == "bass");
+static_assert(stem_name(2) == "other");
+static_assert(stem_name(3) == "vocals");
 static_assert(stem_name(999) == "unknown");
-static_assert(stem_index("vocals") == 0);
-static_assert(stem_index("drums") == 1);
+static_assert(stem_index("drums") == 0);
+static_assert(stem_index("vocals") == 3);
 static_assert(stem_index("invalid") == num_stems);
 
 } // namespace separation
