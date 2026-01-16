@@ -1,17 +1,34 @@
 #!/bin/bash
 # Download and convert Demucs htdemucs model to ONNX format
 # This script automates the process described in models/README.md
+#
+# Usage:
+#   ./download_model.sh          # Download 4-stem model (default)
+#   ./download_model.sh 6        # Download 6-stem model (drums, bass, other, vocals, guitar, piano)
 
 set -euo pipefail
 
 # Configuration
+MODEL_TYPE="${1:-4}"  # 4 or 6 stems
 DEMUCS_ONNX_REPO="https://github.com/sevagh/demucs.onnx"
 WORK_DIR="${TMPDIR:-/tmp}/demucs_conversion"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-MODEL_OUTPUT="${PROJECT_ROOT}/models/htdemucs.onnx"
 
-echo "=== Demucs Model Conversion ==="
+# Select model name based on type
+if [ "$MODEL_TYPE" = "6" ]; then
+    MODEL_NAME="htdemucs_6s"
+    echo "=== Demucs 6-Stem Model Conversion ==="
+    echo "Stems: drums, bass, other, vocals, guitar, piano"
+    echo "Note: Piano quality may not be optimal (experimental)"
+else
+    MODEL_NAME="htdemucs"
+    echo "=== Demucs 4-Stem Model Conversion ==="
+    echo "Stems: drums, bass, other, vocals"
+fi
+
+MODEL_OUTPUT="${PROJECT_ROOT}/models/${MODEL_NAME}.onnx"
+
 echo "This will download and convert the Demucs model to ONNX format"
 echo "Expected time: 5-10 minutes"
 echo "Expected size: ~300MB"
@@ -68,18 +85,17 @@ pip install --quiet onnxscript  # Required for ONNX export but not in requiremen
 
 echo ""
 echo "Step 4/5: Converting PyTorch model to ONNX (this may take several minutes)..."
-python ./scripts/convert-pth-to-onnx.py ./onnx-models
+# Use our custom conversion script with dynamic shapes support
+"${PYTHON_CMD}" "${PROJECT_ROOT}/scripts/convert-demucs-dynamic.py" ./onnx-models --model "${MODEL_NAME}"
 
 echo ""
 echo "Step 5/5: Optimising to ORT format..."
-if ./scripts/convert-model-to-ort.sh 2>/dev/null; then
-    # Use optimised ORT format if available
-    MODEL_SOURCE="./onnx-models/htdemucs.ort"
-    echo "✓ Created optimised ORT model"
-else
-    # Fall back to standard ONNX format
-    MODEL_SOURCE="./onnx-models/htdemucs.onnx"
-    echo "⚠ ORT optimisation failed, using standard ONNX format"
+# Skip ORT optimisation for now, just use ONNX format
+MODEL_SOURCE="./onnx-models/${MODEL_NAME}.onnx"
+if [ ! -f "${MODEL_SOURCE}" ]; then
+    echo "⚠ ONNX model not found, checking for external data format..."
+    # Model might have been created without external data
+    MODEL_SOURCE="./onnx-models/${MODEL_NAME}.onnx"
 fi
 
 # Verify model was created

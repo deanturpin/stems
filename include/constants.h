@@ -37,9 +37,6 @@ static_assert(stereo_channels == 2);
 // Stem separation constants
 namespace separation {
 
-// Number of output stems (vocals, drums, bass, other)
-constexpr auto num_stems = 4uz;
-
 // Model chunk size (fixed input dimension from ONNX export)
 // htdemucs model expects exactly 343,980 samples per chunk
 constexpr auto model_chunk_size = 343980uz;  // ~7.8 seconds at 44.1kHz
@@ -47,14 +44,28 @@ constexpr auto model_chunk_size = 343980uz;  // ~7.8 seconds at 44.1kHz
 // Overlap between chunks for smooth blending (5% of chunk size)
 constexpr auto chunk_overlap = model_chunk_size / 20uz;  // 17,199 samples (~0.39s)
 
-// Stem names in order (as output by htdemucs model)
-// Model outputs: drums, bass, other, vocals (in that order)
-constexpr std::array<std::string_view, num_stems> stem_names = {
+// Stem names for different model variants
+// htdemucs (4 stems): drums, bass, other, vocals
+constexpr std::array<std::string_view, 4uz> stem_names_4 = {
     "drums",
     "bass",
     "other",
     "vocals"
 };
+
+// htdemucs_6s (6 stems): drums, bass, other, vocals, guitar, piano
+constexpr std::array<std::string_view, 6uz> stem_names_6 = {
+    "drums",
+    "bass",
+    "other",
+    "vocals",
+    "guitar",
+    "piano"
+};
+
+// Default to 4-stem model
+constexpr auto num_stems = 4uz;
+constexpr auto stem_names = stem_names_4;
 
 // Get stem name by index
 constexpr std::string_view stem_name(std::size_t index) {
