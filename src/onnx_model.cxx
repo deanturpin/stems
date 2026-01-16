@@ -15,16 +15,21 @@ std::expected<void, ModelError> validate_model_file(std::string_view path) {
     if (!std::filesystem::exists(path))
         return std::unexpected(ModelError::FileNotFound);
 
-    auto const file_size = std::filesystem::file_size(path);
-    if (file_size < min_model_size) {
-        std::println(stderr, "Model file is too small: {} bytes", file_size);
+    auto total_size = std::filesystem::file_size(path);
+
+    // Check for external data file (ONNX models can store weights separately)
+    auto const data_path = std::filesystem::path{path}.string() + ".data";
+    if (std::filesystem::exists(data_path))
+        total_size += std::filesystem::file_size(data_path);
+
+    if (total_size < min_model_size) {
+        std::println(stderr, "Model file is too small: {} bytes", total_size);
         std::println(stderr, "Expected at least {} bytes (~300MB for htdemucs)", min_model_size);
         std::println(stderr, "");
         std::println(stderr, "The model file appears to be corrupted or incomplete.");
         std::println(stderr, "Please regenerate it using the instructions in models/README.md:");
-        std::println(stderr, "  1. git clone --recurse-submodules https://github.com/sevagh/demucs.onnx");
-        std::println(stderr, "  2. Follow the conversion steps in the README");
-        std::println(stderr, "  3. Copy the generated model (~300MB) to {}", path);
+        std::println(stderr, "  1. Run ./scripts/download_model.sh");
+        std::println(stderr, "  2. Or follow manual conversion steps in models/README.md");
         return std::unexpected(ModelError::InvalidModel);
     }
 

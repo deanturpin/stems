@@ -48,8 +48,12 @@ mkdir -p "${WORK_DIR}"
 cd "${WORK_DIR}"
 
 echo "Step 1/5: Cloning demucs.onnx repository..."
-git clone --recurse-submodules --depth 1 "${DEMUCS_ONNX_REPO}"
+# Clone without submodules initially (they're only needed for C++ builds, not Python conversion)
+git clone --depth 1 "${DEMUCS_ONNX_REPO}"
 cd demucs.onnx
+
+# Only clone the demucs submodule which contains the Python model code
+git submodule update --init --depth 1 vendor/demucs
 
 echo ""
 echo "Step 2/5: Setting up Python environment..."
@@ -60,6 +64,7 @@ echo ""
 echo "Step 3/5: Installing dependencies..."
 pip install --quiet --upgrade pip
 pip install --quiet -r scripts/requirements.txt
+pip install --quiet onnxscript  # Required for ONNX export but not in requirements.txt
 
 echo ""
 echo "Step 4/5: Converting PyTorch model to ONNX (this may take several minutes)..."
@@ -97,9 +102,15 @@ if [ "${MODEL_SIZE_MB}" -lt 100 ]; then
 fi
 
 echo ""
-echo "Copying model to project..."
+echo "Copying model files to project..."
 mkdir -p "$(dirname "${MODEL_OUTPUT}")"
 cp "${MODEL_SOURCE}" "${MODEL_OUTPUT}"
+
+# Copy external data file if it exists (ONNX models can store weights separately)
+if [ -f "${MODEL_SOURCE}.data" ]; then
+    cp "${MODEL_SOURCE}.data" "${MODEL_OUTPUT}.data"
+    echo "Copied external data file: ${MODEL_OUTPUT}.data"
+fi
 
 echo ""
 echo "=== Conversion Complete ==="

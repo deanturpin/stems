@@ -8,6 +8,9 @@ stems
 
 # Models (too large for git)
 models/*.onnx
+models/*.onnx.data
+models/*.ort
+models/*.ort.data
 models/*.pt
 
 # Audio files (test files only, except specific examples)
