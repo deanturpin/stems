@@ -85,12 +85,11 @@ pip install --quiet onnxscript  # Required for ONNX export but not in requiremen
 
 echo ""
 echo "Step 4/5: Converting PyTorch model to ONNX (this may take several minutes)..."
-# Use our custom conversion script with dynamic shapes support
-"${PYTHON_CMD}" "${PROJECT_ROOT}/scripts/convert-demucs-dynamic.py" ./onnx-models --model "${MODEL_NAME}"
+# Use standard demucs.onnx conversion script (our dynamic script has PyTorch export API issues)
+python ./scripts/convert-pth-to-onnx.py ./onnx-models --model "${MODEL_NAME}"
 
 echo ""
-echo "Step 5/5: Optimising to ORT format..."
-# Skip ORT optimisation for now, just use ONNX format
+echo "Step 5/5: Checking model output..."
 MODEL_SOURCE="./onnx-models/${MODEL_NAME}.onnx"
 if [ ! -f "${MODEL_SOURCE}" ]; then
     echo "⚠ ONNX model not found, checking for external data format..."
