@@ -162,17 +162,15 @@ std::expected<std::vector<Spectrogram>, ModelError> OnnxModel::infer(
             spec_shape.size()
         );
 
-        // Prepare input/output names
+        // Prepare input/output names (must match ONNX model's actual names)
         auto const input_names = std::array{
-            "waveform",
-            "spectrogram"
+            "input",  // Time-domain waveform input
+            "x"       // Spectrogram input
         };
 
         auto const output_names = std::array{
-            "vocals",
-            "drums",
-            "bass",
-            "other"
+            "output",   // Primary output (spectrograms for all 4 stems)
+            "add_67"    // Secondary output (time-domain waveforms)
         };
 
         // Prepare input tensor array
