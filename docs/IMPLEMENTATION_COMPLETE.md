@@ -94,6 +94,13 @@ Note: Piano quality may have artifacts (documented in Demucs repo)
 **Solution**: Check for .onnx.data files and include in size validation
 **Status**: ✅ FIXED
 
+### 5. ONNX Memory Corruption
+
+**Symptom**: "Incorrect checksum for freed object" malloc error during inference
+**Root Cause**: Using OrtArenaAllocator caused ONNX Runtime to manage memory in a way that conflicted with stack-allocated std::vector buffers
+**Solution**: Changed to OrtDeviceAllocator for CPU memory info, added input validation
+**Status**: ✅ FIXED - Stable processing of entire audio files
+
 ---
 
 ## 🏗️ Architecture
