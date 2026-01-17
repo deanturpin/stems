@@ -117,7 +117,7 @@ std::expected<std::vector<Spectrogram>, ModelError> OnnxModel::infer(
         }
 
         auto const waveform_shape = std::array<int64_t, 3>{1, 2, static_cast<int64_t>(num_samples)};
-        auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+        auto memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
 
         auto waveform_tensor = Ort::Value::CreateTensor<float>(
             memory_info,
@@ -130,6 +130,14 @@ std::expected<std::vector<Spectrogram>, ModelError> OnnxModel::infer(
         // Prepare spectrogram input tensor [1, 4, freq, time]
         // Complex-as-channels: real_left, imag_left, real_right, imag_right
         auto const spec_size = num_bins * num_frames;
+
+        // Verify input spectrogram sizes match expected dimensions
+        if (spec_left.real.size() != spec_size or spec_left.imag.size() != spec_size or
+            spec_right.real.size() != spec_size or spec_right.imag.size() != spec_size) {
+            std::println(stderr, "Spectrogram size mismatch!");
+            return std::unexpected(ModelError::InferenceFailed);
+        }
+
         auto spectrogram_data = std::vector<float>(4 * spec_size);
 
         // Channel 0: real components (left)
