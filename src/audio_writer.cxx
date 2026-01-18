@@ -52,16 +52,21 @@ std::expected<void, WriteError> write_wav_file(
     return {};
 }
 
-// Generate output filename for a stem
+// Generate output filename for a stem in a dedicated subdirectory
 std::filesystem::path make_stem_path(
     std::filesystem::path const& base_path,
     std::string_view stem_name
 ) {
-    auto path = base_path;
-    path.replace_filename(
-        path.stem().string() + "_" + std::string{stem_name} + path.extension().string()
-    );
-    return path;
+    // Create output directory named after the input file (without extension)
+    auto output_dir = base_path.parent_path() / base_path.stem();
+
+    // Create the directory if it doesn't exist
+    std::filesystem::create_directories(output_dir);
+
+    // Generate stem filename: inputname_stemname.wav
+    auto const filename = base_path.stem().string() + "_" + std::string{stem_name} + base_path.extension().string();
+
+    return output_dir / filename;
 }
 
 } // anonymous namespace
@@ -75,7 +80,8 @@ std::expected<void, WriteError> write_stems(
     if (!base_path.has_filename())
         return std::unexpected(WriteError::InvalidPath);
 
-    std::println("Writing stems to {}...", base_path.parent_path().string());
+    auto const output_dir = base_path.parent_path() / base_path.stem();
+    std::println("Writing stems to {}...", output_dir.string());
 
     // Detect number of stems based on non-empty guitar stem
     auto const num_stems = stems.guitar.empty() ? 4uz : 6uz;
