@@ -77,23 +77,38 @@ std::expected<void, WriteError> write_stems(
 
     std::println("Writing stems to {}...", base_path.parent_path().string());
 
+    // Detect number of stems based on non-empty guitar stem
+    auto const num_stems = stems.guitar.empty() ? 4uz : 6uz;
+
     // Write each stem to its own file
-    auto const stem_files = std::array{
-        std::pair{separation::stem_names[0], &stems.vocals},
-        std::pair{separation::stem_names[1], &stems.drums},
-        std::pair{separation::stem_names[2], &stems.bass},
-        std::pair{separation::stem_names[3], &stems.other}
+    // Order: drums, bass, other, vocals [, guitar, piano]
+    auto const stem_files = std::vector<std::pair<std::string_view, std::vector<float> const*>>{
+        {separation::stem_name(0, num_stems), &stems.drums},
+        {separation::stem_name(1, num_stems), &stems.bass},
+        {separation::stem_name(2, num_stems), &stems.other},
+        {separation::stem_name(3, num_stems), &stems.vocals},
+        {separation::stem_name(4, num_stems), &stems.guitar},
+        {separation::stem_name(5, num_stems), &stems.piano}
     };
 
-    for (auto const& [name, data] : stem_files) {
+    auto stems_written = 0uz;
+    for (auto i = 0uz; i < num_stems; ++i) {
+        auto const& [name, data] = stem_files[i];
+
+        // Skip empty stems (only guitar/piano can be empty for 4-stem model)
+        if (data->empty())
+            continue;
+
         auto const path = make_stem_path(base_path, name);
         auto const result = write_wav_file(path, *data, sample_rate, channels);
 
         if (!result)
             return result;
+
+        ++stems_written;
     }
 
-    std::println("Successfully wrote {} stems", separation::num_stems);
+    std::println("Successfully wrote {} stems", stems_written);
     return {};
 }
 

@@ -67,9 +67,16 @@ constexpr std::array<std::string_view, 6uz> stem_names_6 = {
 constexpr auto num_stems = 4uz;
 constexpr auto stem_names = stem_names_4;
 
-// Get stem name by index
+// Get stem name by index (for default 4-stem model)
 constexpr std::string_view stem_name(std::size_t index) {
     return index < num_stems ? stem_names[index] : "unknown";
+}
+
+// Get stem name by index with dynamic stem count
+constexpr std::string_view stem_name(std::size_t index, std::size_t total_stems) {
+    if (total_stems == 6)
+        return index < stem_names_6.size() ? stem_names_6[index] : "unknown";
+    return index < stem_names_4.size() ? stem_names_4[index] : "unknown";
 }
 
 // Find stem index by name

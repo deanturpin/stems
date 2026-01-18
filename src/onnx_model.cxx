@@ -218,13 +218,24 @@ std::expected<std::vector<Spectrogram>, ModelError> OnnxModel::infer(
         auto const shape_info = time_domain_output.GetTensorTypeAndShapeInfo();
         auto const shape = shape_info.GetShape();
 
-        // Verify shape: [1, 4, 2, 343980]
-        if (shape.size() != 4 or shape[1] != 4 or shape[2] != 2) {
-            std::println(stderr, "Unexpected time-domain output shape");
+        // Verify shape: [batch, stems, channels, samples]
+        // Expect shape[0]=1 (batch), shape[1]=4 or 6 (stems), shape[2]=2 (stereo), shape[3]=samples
+        if (shape.size() != 4 or shape[0] != 1 or shape[2] != 2) {
+            std::println(stderr, "Unexpected time-domain output shape: [{}, {}, {}, {}]",
+                         shape.size() > 0 ? shape[0] : 0,
+                         shape.size() > 1 ? shape[1] : 0,
+                         shape.size() > 2 ? shape[2] : 0,
+                         shape.size() > 3 ? shape[3] : 0);
             return std::unexpected(ModelError::InferenceFailed);
         }
 
         auto const num_stems = static_cast<std::size_t>(shape[1]);
+
+        // Validate number of stems (4 or 6)
+        if (num_stems != 4 and num_stems != 6) {
+            std::println(stderr, "Unexpected number of stems: {} (expected 4 or 6)", num_stems);
+            return std::unexpected(ModelError::InferenceFailed);
+        }
         auto const num_channels = static_cast<std::size_t>(shape[2]);
         auto const samples_per_stem = static_cast<std::size_t>(shape[3]);
 
