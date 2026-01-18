@@ -14,6 +14,7 @@ stems: all
 
 clean:
 	@rm -rf $(BUILD_DIR)
+	@rm -rf example/
 
 test: all
 	@cd $(BUILD_DIR) && ctest --output-on-failure
